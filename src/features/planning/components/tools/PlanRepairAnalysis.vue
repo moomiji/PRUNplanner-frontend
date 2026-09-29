@@ -122,6 +122,12 @@
 	watch(
 		[selectedBuilding, localData],
 		async () => {
+			// 👇 加在这里，dump 当前状态
+			console.log("=== watch triggered ===");
+			console.log("selectedBuilding:", selectedBuilding.value);
+			console.log("localData:", localData.value);
+			console.log("localData JSON:", JSON.stringify(localData.value, null, 2));
+			
 			// the plan's buildings changed, keep the selection valid
 			if (!localData.value[selectedBuilding.value ?? -1])
 				selectedBuilding.value =
