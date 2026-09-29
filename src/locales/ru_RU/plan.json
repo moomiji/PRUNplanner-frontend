@@ -144,7 +144,7 @@
 			"info": "Идеи собираются из данных активных планов игроков на {planet}. PRUNplanner используем минимальные пороговые значения, чтобы обеспечить анонимность и статистическую точность.",
 			"labels": {
 				"experts": "Эксперты",
-				"production_buildings": "Производство @terms.buildings_plural",
+				"production_buildings": "Производство @:terms.buildings_plural",
 				"recipes": "@:terms.recipes_plural"
 			}
 		}

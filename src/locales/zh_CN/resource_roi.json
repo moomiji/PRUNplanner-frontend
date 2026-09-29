@@ -3,7 +3,7 @@
 	"title": "资源ROI 概述",
 	"info": "选择一种资源，然后点击“搜索并计算”",
 	"calculating": "正在计算各行星的资源 ROI。",
-	"searching": "正在搜索含有 {resource} 的 @terms.planet_plural。等待后端响应",
+	"searching": "正在搜索含有\"{resource}\"的@:terms.planet_plural。等待后端响应",
 	"resource_select": "选择 @:terms.resources",
 	"cx_select": "@:terms.cx 偏好",
 	"button_calculate": "搜索并计算",
