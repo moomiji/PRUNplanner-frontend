@@ -29,7 +29,7 @@ vi.mock("@/ui/charts/PlanRepairProfitChart.vue", () => ({
 vi.mock("@/ui/charts/PlanRepairCostChart.vue", () => ({
 	default: {
 		name: "PlanRepairCostChart",
-		props: { series: Array },
+		props: { series: Array, optimalPoint: Object },
 		render: () => h("div"),
 	},
 }));
@@ -116,7 +116,11 @@ function dayRows(wrapper: VueWrapper) {
 		.map((tr) => tr.findAll("td").map((td) => td.text().split(" ")[0]));
 }
 
-async function select(wrapper: VueWrapper, index: 0 | 1, value: number) {
+async function select(
+	wrapper: VueWrapper,
+	index: 0 | 1,
+	value: number | string
+) {
 	wrapper
 		.findAllComponents(PSelect)
 		.at(index)!
@@ -182,10 +186,15 @@ describe("PlanRepairAnalysis", () => {
 		expect(dayOptions.at(0)!.value).toBe(1);
 		expect(dayOptions.at(-1)!.value).toBe(180);
 
-		expect(buildings.props("options")).toEqual([
+		const options = buildings.props("options") as {
+			label: string;
+			value: string | number;
+		}[];
+		expect(options.slice(0, 2)).toEqual([
 			{ label: "FRM", value: 0 },
 			{ label: "EXT", value: 1 },
 		]);
+		expect(options.at(-1)?.value).toBe("all-buildings");
 		expect(buildings.text()).toContain("FRM");
 	});
 
@@ -246,14 +255,28 @@ describe("PlanRepairAnalysis", () => {
 	});
 
 	it("breaks the repair cost down per material", async () => {
+	it("shows daily average cost and breaks repair cost down per material", async () => {
 		const { wrapper } = await mountAnalysis();
-		const series = wrapper
-			.findComponent(PlanRepairCostChart)
-			.props("series") as { name: string; data: number[] }[];
+		const chart = wrapper.findComponent(PlanRepairCostChart);
+		const series = chart.props("series") as {
+			name: string;
+			data: number[];
+		}[];
 
-		expect(series.map((s) => s.name)).toEqual(["Total Cost", "BBH", "BSE"]);
-		// day 45: 1 BBH (100) + 1 BSE (50)
-		expect(series.map((s) => s.data[45])).toEqual([150, 100, 50]);
+		expect(series.map((s) => s.name)).toEqual([
+			"Total Cost",
+			"Total Cost/Day",
+			"BBH",
+			"BSE",
+		]);
+		// day 45: FRM x2, 2 BBH (200) + 2 BSE (100)
+		expect(series.map((s) => s.data[45])).toEqual([
+			300,
+			300 / 46,
+			200,
+			100,
+		]);
+		expect(chart.props("optimalPoint")).toEqual({ x: 0, y: 0 });
 	});
 
 	it("recalculates the curves for another building", async () => {
@@ -264,9 +287,19 @@ describe("PlanRepairAnalysis", () => {
 		const series = wrapper
 			.findComponent(PlanRepairCostChart)
 			.props("series") as { name: string; data: number[] }[];
-		expect(series.map((s) => s.name)).toEqual(["Total Cost", "BSE", "MCG"]);
+		expect(series.map((s) => s.name)).toEqual([
+			"Total Cost",
+			"Total Cost/Day",
+			"BSE",
+			"MCG",
+		]);
 		// day 180: full EXT construction 16 * 50 + 100 * 10
-		expect(series.map((s) => s.data[180])).toEqual([1800, 800, 1000]);
+		expect(series.map((s) => s.data[180])).toEqual([
+			1800,
+			1800 / 181,
+			800,
+			1000,
+		]);
 
 		// the day table still covers all buildings
 		expect(dayRows(wrapper)).toHaveLength(3);
@@ -295,7 +328,12 @@ describe("PlanRepairAnalysis", () => {
 		const series = wrapper
 			.findComponent(PlanRepairCostChart)
 			.props("series") as { name: string }[];
-		expect(series.map((s) => s.name)).toEqual(["Total Cost", "BBH", "BSE"]);
+		expect(series.map((s) => s.name)).toEqual([
+			"Total Cost",
+			"Total Cost/Day",
+			"BBH",
+			"BSE",
+		]);
 	});
 
 	it("clears the selection when the last building is removed", async () => {

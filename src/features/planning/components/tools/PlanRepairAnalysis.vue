@@ -177,6 +177,16 @@
 	const optimalDay = computed(() =>
 		findOptimalRepairDay(displayedRepairAnalysisElements.value)
 	);
+	const lowestCostDay = computed(() => {
+		const elements = displayedRepairAnalysisElements.value;
+		if (!elements.length) return undefined;
+
+		const cost = Math.min(...elements.map((element) => element.repair));
+		return {
+			x: elements.findIndex((element) => element.repair === cost),
+			y: cost,
+		};
+	});
 	const singleMat = computed(() =>
 		repairCostSeries(
 			displayedRepairAnalysisElements.value,
@@ -328,6 +338,7 @@
 						}}
 					</h2>
 					<PlanRepairCostChart
+						:optimal-point="lowestCostDay"
 						:series="
 							[
 								{

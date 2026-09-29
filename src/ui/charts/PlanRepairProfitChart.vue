@@ -89,6 +89,10 @@
 	const chartOptions = {
 		responsive: true,
 		maintainAspectRatio: false,
+		interaction: {
+			mode: "index" as const,
+			intersect: false,
+		},
 		scales: {
 			x: {
 				offset: false,
