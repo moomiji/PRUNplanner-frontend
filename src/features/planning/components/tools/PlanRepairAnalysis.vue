@@ -60,14 +60,24 @@
 	const localData = computed(() => props.data);
 	const localCxUuid = computed(() => props.cxUuid);
 	const localPlanetNaturalId = computed(() => props.planetNaturalId);
+	const ALL_BUILDINGS = "all-buildings" as const;
 
-	const selectionOptions: ComputedRef<PSelectOption[]> = computed(() =>
-		localData.value.map((b, i) => {
-			return { label: b.name, value: i };
-		})
+	const selectionOptions: ComputedRef<PSelectOption[]> = computed(() => {
+		const options: PSelectOption[] = localData.value.map((b, i) => ({
+			label: b.name,
+			value: i,
+		}));
+		if (localData.value.length > 0)
+			options.push({
+				label: t("plan.tools.repair_analysis.graph.all_buildings"),
+				value: ALL_BUILDINGS,
+			});
+		return options;
+	});
+
+	const selectedBuilding = ref<number | typeof ALL_BUILDINGS | undefined>(
+		localData.value.length > 0 ? 0 : undefined
 	);
-
-	const selectedBuilding = ref(localData.value.length > 0 ? 0 : undefined);
 	const selectedDay = ref(90);
 	const repairAnalysisElements = ref<IPlanRepairAnalysisElement[]>([]);
 	const allBuildingsRepairAnalysisElements =
@@ -159,19 +169,17 @@
 		return combined;
 	}
 
+	const displayedRepairAnalysisElements = computed(() =>
+		selectedBuilding.value === ALL_BUILDINGS
+			? allBuildingsRepairAnalysisElements.value
+			: repairAnalysisElements.value
+	);
 	const optimalDay = computed(() =>
-		findOptimalRepairDay(repairAnalysisElements.value)
+		findOptimalRepairDay(displayedRepairAnalysisElements.value)
 	);
-
 	const singleMat = computed(() =>
-		repairCostSeries(repairAnalysisElements.value, repairPrices.value)
-	);
-	const allBuildingsOptimalDay = computed(() =>
-		findOptimalRepairDay(allBuildingsRepairAnalysisElements.value)
-	);
-	const allBuildingsSingleMat = computed(() =>
 		repairCostSeries(
-			allBuildingsRepairAnalysisElements.value,
+			displayedRepairAnalysisElements.value,
 			repairPrices.value
 		)
 	);
@@ -194,7 +202,10 @@
 		[selectedBuilding, localData],
 		async () => {
 			// the plan's buildings changed, keep the selection valid
-			if (!localData.value[selectedBuilding.value ?? -1])
+			if (
+				selectedBuilding.value !== ALL_BUILDINGS &&
+				!localData.value[selectedBuilding.value ?? -1]
+			)
 				selectedBuilding.value =
 					localData.value.length > 0 ? 0 : undefined;
 
@@ -217,10 +228,16 @@
 				repairPrices.value = prices;
 
 				const selected =
-					selectedBuilding.value === undefined
-						? []
-						: [localData.value[selectedBuilding.value]];
-				repairAnalysisElements.value = calculateRep(selected, prices);
+					selectedBuilding.value === ALL_BUILDINGS
+						? localData.value
+						: typeof selectedBuilding.value === "number"
+							? [localData.value[selectedBuilding.value]]
+							: [];
+				repairAnalysisElements.value = calculateRep(
+					selected,
+					prices,
+					true
+				);
 				allBuildingsRepairAnalysisElements.value = calculateRep(
 					localData.value,
 					prices,
@@ -274,74 +291,32 @@
 					:materials="dailyRepairMaterials[selectedDay]" />
 			</div>
 		</div>
-		<div class="grid grid-cols-1 xl:grid-cols-2 gap-x-6">
-			<section>
-				<h2 class="font-bold pb-3">
-					{{
-						$t("plan.tools.repair_analysis.graph.individual_building")
-					}}
-				</h2>
-				<PForm>
-					<PFormItem
-						:label="
-							t('plan.tools.repair_analysis.graph.select_building')
-						">
-						<PSelect
-							v-model:value="selectedBuilding"
-							:options="selectionOptions"
-							class="w-1/2 max-w-50" />
-					</PFormItem>
-				</PForm>
+		<div>
+			<h2 class="font-bold pb-3">
+				{{ $t("plan.tools.repair_analysis.graph.individual_building") }}
+			</h2>
+			<PForm>
+				<PFormItem
+					:label="
+						t('plan.tools.repair_analysis.graph.select_building')
+					">
+					<PSelect
+						v-model:value="selectedBuilding"
+						:options="selectionOptions"
+						class="w-1/2 max-w-50" />
+				</PFormItem>
+			</PForm>
 
-				<template v-if="selectionOptions.length > 0">
-					<div class="flex flex-col">
-						<div>
-							<h2 class="font-bold py-3">Profit Curve</h2>
-							<PlanRepairProfitChart
-								:profit-data="
-									repairAnalysisElements.map((r) => r.profit)
-								"
-								:optimal-point="{
-									x: optimalDay.day,
-									y: optimalDay.profit,
-								}" />
-						</div>
-					<div>
-						<h2 class="font-bold pb-3">
-							{{
-								$t(
-									"plan.tools.repair_analysis.graph.repair_cost_breakdown"
-								)
-							}}
-						</h2>
-						<PlanRepairCostChart
-							:series="
-								[
-									{
-										name: 'Total Cost',
-										data: repairAnalysisElements.map(
-											(r) => r.dailyRepair
-										),
-									},
-								].concat(singleMat)
-							" />
-					</div>
-				</div>
-				</template>
-			</section>
-			<section v-if="selectionOptions.length > 0">
-				<h2 class="font-bold pb-3">
-					{{ $t("plan.tools.repair_analysis.graph.all_buildings") }}
-				</h2>
+			<template v-if="localData.length > 0">
 				<div>
 					<h2 class="font-bold py-3">Profit Curve</h2>
 					<PlanRepairProfitChart
 						:profit-data="
-							allBuildingsRepairAnalysisElements.map((r) => r.profit)
+							displayedRepairAnalysisElements.map((r) => r.profit)
 						"
 						:optimal-point="{
-							x: allBuildingsOptimalDay.day,
-							y: allBuildingsOptimalDay.profit,
+							x: optimalDay.day,
+							y: optimalDay.profit,
 						}" />
 				</div>
 				<div>
@@ -357,19 +332,14 @@
 							[
 								{
 									name: 'Total Cost',
-									data: allBuildingsRepairAnalysisElements.map(
+									data: displayedRepairAnalysisElements.map(
 										(r) => r.dailyRepair
 									),
 								},
-							].concat(
-								allBuildingsSingleMat as {
-									name: string;
-									data: number[];
-								}[]
-							)
+							].concat(singleMat)
 						" />
 				</div>
-			</section>
+			</template>
 		</div>
 	</div>
 </template>
