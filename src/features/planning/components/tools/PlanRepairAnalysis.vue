@@ -336,6 +336,12 @@
 										(r) => r.dailyRepair
 									),
 								},
+								{
+									name: 'Total Cost/Day',
+									data: displayedRepairAnalysisElements.map(
+										(r) => r.repair
+									),
+								},
 							].concat(singleMat)
 						" />
 				</div>
