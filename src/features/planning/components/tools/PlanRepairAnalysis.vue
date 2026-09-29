@@ -70,6 +70,8 @@
 	const selectedBuilding = ref(localData.value.length > 0 ? 0 : undefined);
 	const selectedDay = ref(90);
 	const repairAnalysisElements = ref<IPlanRepairAnalysisElement[]>([]);
+	const allBuildingsRepairAnalysisElements =
+		ref<IPlanRepairAnalysisElement[]>([]);
 	const dailyRepairMaterials: Ref<Record<number, IMaterialIO[]>> = ref({});
 	const repairPrices = ref<Record<string, number>>({});
 
@@ -77,36 +79,84 @@
 	const { calculateDailyRepairMaterials, daySelectOptions } =
 		useRepairAnalysis(localCxUuid, localPlanetNaturalId);
 
-	async function calculateRep() {
-		if (selectedBuilding.value === undefined) {
-			repairPrices.value = {};
-			repairAnalysisElements.value = [];
-			return;
-		}
+	function calculateRep(
+		buildings: IPlanRepairAnalysisDataProp[],
+		prices: Record<string, number>,
+		scaleRepairByAmount = false
+	): IPlanRepairAnalysisElement[] {
+		if (!buildings.length) return [];
 
-		const building = localData.value[selectedBuilding.value];
-		const prices: Record<string, number> = {};
-		for (const m of building.constructionMaterials)
-			prices[m.ticker] = await getPrice(m.ticker, "BUY");
+		const curves = buildings.map((building) => {
+			// dailyRevenue is the building type's total after workforce and
+			// construction amortization have been subtracted.
+			const workforceCost = -building.workforceDailyCost;
+			const productionValue =
+				building.amount > 0
+					? building.dailyRevenue / building.amount +
+						workforceCost -
+						building.constructionCost / 180
+					: 0;
 
-		repairPrices.value = prices;
-		// one building: dailyRevenue covers all of them and already subtracts
-		// workforce and construction / 180 (see engine/production.ts), take
-		// those back out, the curve charges workforce and real repair cost
-		const workforceCost = -building.workforceDailyCost;
-		const productionValue =
-			building.amount > 0
-				? building.dailyRevenue / building.amount +
-					workforceCost -
-					building.constructionCost / 180
-				: 0;
+			return calculateRepairCurve(
+				productionValue,
+				workforceCost,
+				building.constructionMaterials,
+				prices
+			);
+		});
+		if (!scaleRepairByAmount && curves.length === 1) return curves[0];
 
-		repairAnalysisElements.value = calculateRepairCurve(
-			productionValue,
-			workforceCost,
-			building.constructionMaterials,
-			prices
-		);
+		const combined = curves[0].map((_, day) => {
+			let dailyRevenue = 0;
+			let dailyRevenue_integral = 0;
+			let dailyRevenue_norm = 0;
+			let workforceCost = 0;
+			let repair = 0;
+			let dailyRepair = 0;
+			const materialsByTicker = new Map<string, number>();
+
+			curves.forEach((curve, index) => {
+				const element = curve[day];
+				const amount = scaleRepairByAmount
+					? buildings[index].amount
+					: 1;
+				dailyRevenue += element.dailyRevenue * amount;
+				dailyRevenue_integral +=
+					element.dailyRevenue_integral * amount;
+				dailyRevenue_norm += element.dailyRevenue_norm * amount;
+				workforceCost +=
+					-buildings[index].workforceDailyCost * amount;
+				repair += element.repair * amount;
+				dailyRepair += element.dailyRepair * amount;
+				element.materials.forEach((material) => {
+					materialsByTicker.set(
+						material.ticker,
+						(materialsByTicker.get(material.ticker) ?? 0) +
+							material.amount * amount
+					);
+				});
+			});
+
+			return {
+				...curves[0][day],
+				dailyRevenue,
+				dailyRevenue_integral,
+				dailyRevenue_norm,
+				materials: Array.from(
+					materialsByTicker,
+					([ticker, amount]) => ({ ticker, amount })
+				),
+				repair,
+				dailyRepair,
+				profit:
+					day === 0
+						? 0
+						: dailyRevenue_norm - workforceCost - repair,
+			};
+		});
+
+		if (combined.length > 1) combined[0].profit = combined[1].profit;
+		return combined;
 	}
 
 	const optimalDay = computed(() =>
@@ -115,6 +165,15 @@
 
 	const singleMat = computed(() =>
 		repairCostSeries(repairAnalysisElements.value, repairPrices.value)
+	);
+	const allBuildingsOptimalDay = computed(() =>
+		findOptimalRepairDay(allBuildingsRepairAnalysisElements.value)
+	);
+	const allBuildingsSingleMat = computed(() =>
+		repairCostSeries(
+			allBuildingsRepairAnalysisElements.value,
+			repairPrices.value
+		)
 	);
 
 	const selectPlanTransferMaterials = computed(() => {
@@ -140,7 +199,33 @@
 					localData.value.length > 0 ? 0 : undefined;
 
 			try {
-				await calculateRep();
+				const tickers = new Set(
+					localData.value.flatMap((building) =>
+						building.constructionMaterials.map(
+							(material) => material.ticker
+						)
+					)
+				);
+				const prices: Record<string, number> = Object.fromEntries(
+					await Promise.all(
+						Array.from(tickers, async (ticker) => [
+							ticker,
+							await getPrice(ticker, "BUY"),
+						] as const)
+					)
+				);
+				repairPrices.value = prices;
+
+				const selected =
+					selectedBuilding.value === undefined
+						? []
+						: [localData.value[selectedBuilding.value]];
+				repairAnalysisElements.value = calculateRep(selected, prices);
+				allBuildingsRepairAnalysisElements.value = calculateRep(
+					localData.value,
+					prices,
+					true
+				);
 				dailyRepairMaterials.value =
 					await calculateDailyRepairMaterials(localData.value);
 			} catch (err) {
@@ -189,35 +274,38 @@
 					:materials="dailyRepairMaterials[selectedDay]" />
 			</div>
 		</div>
-		<div>
-			<h2 class="font-bold pb-3">
-				{{ $t("plan.tools.repair_analysis.graph.individual_building") }}
-			</h2>
-			<PForm>
-				<PFormItem
-					:label="
-						t('plan.tools.repair_analysis.graph.select_building')
-					">
-					<PSelect
-						v-model:value="selectedBuilding"
-						:options="selectionOptions"
-						class="w-1/2 max-w-50" />
-				</PFormItem>
-			</PForm>
+		<div class="grid grid-cols-1 xl:grid-cols-2 gap-x-6">
+			<section>
+				<h2 class="font-bold pb-3">
+					{{
+						$t("plan.tools.repair_analysis.graph.individual_building")
+					}}
+				</h2>
+				<PForm>
+					<PFormItem
+						:label="
+							t('plan.tools.repair_analysis.graph.select_building')
+						">
+						<PSelect
+							v-model:value="selectedBuilding"
+							:options="selectionOptions"
+							class="w-1/2 max-w-50" />
+					</PFormItem>
+				</PForm>
 
-			<template v-if="selectionOptions.length > 0">
-				<div class="flex flex-col">
-					<div>
-						<h2 class="font-bold py-3">Profit Curve</h2>
-						<PlanRepairProfitChart
-							:profit-data="
-								repairAnalysisElements.map((r) => r.profit)
-							"
-							:optimal-point="{
-								x: optimalDay.day,
-								y: optimalDay.profit,
-							}" />
-					</div>
+				<template v-if="selectionOptions.length > 0">
+					<div class="flex flex-col">
+						<div>
+							<h2 class="font-bold py-3">Profit Curve</h2>
+							<PlanRepairProfitChart
+								:profit-data="
+									repairAnalysisElements.map((r) => r.profit)
+								"
+								:optimal-point="{
+									x: optimalDay.day,
+									y: optimalDay.profit,
+								}" />
+						</div>
 					<div>
 						<h2 class="font-bold pb-3">
 							{{
@@ -239,7 +327,49 @@
 							" />
 					</div>
 				</div>
-			</template>
+				</template>
+			</section>
+			<section v-if="selectionOptions.length > 0">
+				<h2 class="font-bold pb-3">
+					{{ $t("plan.tools.repair_analysis.graph.all_buildings") }}
+				</h2>
+				<div>
+					<h2 class="font-bold py-3">Profit Curve</h2>
+					<PlanRepairProfitChart
+						:profit-data="
+							allBuildingsRepairAnalysisElements.map((r) => r.profit)
+						"
+						:optimal-point="{
+							x: allBuildingsOptimalDay.day,
+							y: allBuildingsOptimalDay.profit,
+						}" />
+				</div>
+				<div>
+					<h2 class="font-bold pb-3">
+						{{
+							$t(
+								"plan.tools.repair_analysis.graph.repair_cost_breakdown"
+							)
+						}}
+					</h2>
+					<PlanRepairCostChart
+						:series="
+							[
+								{
+									name: 'Total Cost',
+									data: allBuildingsRepairAnalysisElements.map(
+										(r) => r.dailyRepair
+									),
+								},
+							].concat(
+								allBuildingsSingleMat as {
+									name: string;
+									data: number[];
+								}[]
+							)
+						" />
+				</div>
+			</section>
 		</div>
 	</div>
 </template>

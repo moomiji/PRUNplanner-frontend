@@ -134,6 +134,7 @@
 			"graph": {
 				"select_building": "Select @:terms.buildings",
 				"individual_building": "Individual @:terms.buildings",
+				"all_buildings": "All Buildings Total",
 				"repair_cost_breakdown": "Repair Cost Breakdown"
 			}
 		},

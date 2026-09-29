@@ -110,6 +110,7 @@
 			"graph": {
 				"select_building": "选择 @:terms.buildings",
 				"individual_building": "单个 @terms.buildings",
+				"all_buildings": "所有建筑合计",
 				"repair_cost_breakdown": "维修成本明细"
 			}
 		},
