@@ -62,12 +62,23 @@
 	const localPlanetNaturalId = computed(() => props.planetNaturalId);
 
 	const selectionOptions: ComputedRef<PSelectOption[]> = computed(() =>
-		localData.value.map((b, i) => {
-			return { label: b.name, value: i };
-		})
+		localData.value.length === 0
+			? []
+			: [
+					...localData.value.map((b, i) => ({
+						label: b.name,
+						value: i,
+					})),
+					{
+						label: t("plan.tools.repair_analysis.graph.all_buildings"),
+						value: "all",
+					},
+				]
 	);
 
-	const selectedBuilding = ref(localData.value.length > 0 ? 0 : undefined);
+	const selectedBuilding = ref<number | "all" | undefined>(
+		localData.value.length > 0 ? 0 : undefined
+	);
 	const selectedDay = ref(90);
 	const repairAnalysisElements = ref<IPlanRepairAnalysisElement[]>([]);
 	const dailyRepairMaterials: Ref<Record<number, IMaterialIO[]>> = ref({});
@@ -84,36 +95,104 @@
 			return;
 		}
 
-		const building = localData.value[selectedBuilding.value];
+		const isAllBuildings = selectedBuilding.value === "all";
+		const buildings = isAllBuildings
+			? localData.value
+			: [localData.value[selectedBuilding.value]];
+		if (buildings.length === 0) {
+			repairPrices.value = {};
+			repairAnalysisElements.value = [];
+			return;
+		}
 		const prices: Record<string, number> = {};
-		for (const m of building.constructionMaterials)
-			prices[m.ticker] = await getPrice(m.ticker, "BUY");
+		for (const building of buildings)
+			for (const material of building.constructionMaterials)
+				if (!(material.ticker in prices))
+					prices[material.ticker] = await getPrice(
+						material.ticker,
+						"BUY"
+					);
 
 		repairPrices.value = prices;
-		// one building: dailyRevenue covers all of them and already subtracts
-		// workforce and construction / 180 (see engine/production.ts), take
-		// those back out, the curve charges workforce and real repair cost
-		const workforceCost = -building.workforceDailyCost;
-		const productionValue =
-			building.amount > 0
-				? building.dailyRevenue / building.amount +
-					workforceCost -
-					building.constructionCost / 180
-				: 0;
+		const curves = buildings.map((building) => {
+			// dailyRevenue covers all buildings and already subtracts workforce
+			// and construction / 180 (see engine/production.ts).
+			const workforceCost = -building.workforceDailyCost;
+			const productionValue =
+				building.amount > 0
+					? building.dailyRevenue / building.amount +
+						workforceCost -
+						building.constructionCost / 180
+					: 0;
 
-		repairAnalysisElements.value = calculateRepairCurve(
-			productionValue,
-			workforceCost,
-			building.constructionMaterials,
-			prices
-		);
+			return {
+				amount: isAllBuildings ? building.amount : 1,
+				curve: calculateRepairCurve(
+					productionValue,
+					workforceCost,
+					building.constructionMaterials,
+					prices
+				),
+			};
+		});
+
+		if (!isAllBuildings) {
+			repairAnalysisElements.value = curves[0].curve;
+			return;
+		}
+
+		repairAnalysisElements.value = curves[0].curve.map((element, day) => {
+			const materials = new Map<string, number>();
+			for (const { amount, curve } of curves)
+				for (const material of curve[day].materials)
+					materials.set(
+						material.ticker,
+						(materials.get(material.ticker) ?? 0) +
+							material.amount * amount
+					);
+
+			return {
+				...element,
+				dailyRevenue: curves.reduce(
+					(sum, item) => sum + item.curve[day].dailyRevenue * item.amount,
+					0
+				),
+				dailyRevenue_integral: curves.reduce(
+					(sum, item) =>
+						sum + item.curve[day].dailyRevenue_integral * item.amount,
+					0
+				),
+				dailyRevenue_norm: curves.reduce(
+					(sum, item) =>
+						sum + item.curve[day].dailyRevenue_norm * item.amount,
+					0
+				),
+				materials: Array.from(materials, ([ticker, amount]) => ({
+					ticker,
+					amount,
+				})),
+				repair: curves.reduce(
+					(sum, item) => sum + item.curve[day].repair * item.amount,
+					0
+				),
+				dailyRepair: curves.reduce(
+					(sum, item) =>
+						sum + item.curve[day].dailyRepair * item.amount,
+					0
+				),
+				profit: curves.reduce(
+					(sum, item) => sum + item.curve[day].profit * item.amount,
+					0
+				),
+			};
+		});
 	}
 
 	const optimalDay = computed(() =>
 		findOptimalRepairDay(repairAnalysisElements.value)
 	);
 
-	const singleMat = computed(() =>
+	const repairCostBreakdown = computed(() =>
 		repairCostSeries(repairAnalysisElements.value, repairPrices.value)
 	);
 
@@ -135,7 +214,11 @@
 		[selectedBuilding, localData],
 		async () => {
 			// the plan's buildings changed, keep the selection valid
-			if (!localData.value[selectedBuilding.value ?? -1])
+			if (
+				localData.value.length === 0 ||
+				(selectedBuilding.value !== "all" &&
+					!localData.value[selectedBuilding.value ?? -1])
+			)
 				selectedBuilding.value =
 					localData.value.length > 0 ? 0 : undefined;
 
@@ -191,7 +274,7 @@
 		</div>
 		<div>
 			<h2 class="font-bold pb-3">
-				{{ $t("plan.tools.repair_analysis.graph.individual_building") }}
+				{{ $t("plan.tools.repair_analysis.graph.building_analysis") }}
 			</h2>
 			<PForm>
 				<PFormItem
@@ -235,8 +318,15 @@
 											(r) => r.dailyRepair
 										),
 									},
-								].concat(singleMat)
-							" />
+									{
+										name: t(
+											'plan.tools.repair_analysis.graph.total_cost_per_day'
+										),
+										data: repairAnalysisElements.map((r) => r.repair),
+									},
+								].concat(repairCostBreakdown)
+							"
+						/>
 					</div>
 				</div>
 			</template>

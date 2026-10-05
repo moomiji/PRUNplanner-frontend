@@ -146,8 +146,10 @@
 			},
 			"graph": {
 				"select_building": "Select @:terms.buildings",
-				"individual_building": "Individual @:terms.buildings",
-				"repair_cost_breakdown": "Repair Cost Breakdown"
+				"building_analysis": "Building Analysis",
+				"all_buildings": "All buildings",
+				"repair_cost_breakdown": "Repair Cost Breakdown",
+				"total_cost_per_day": "Total Cost/Day"
 			}
 		},
 		"cogm": {

@@ -116,7 +116,11 @@ function dayRows(wrapper: VueWrapper) {
 		.map((tr) => tr.findAll("td").map((td) => td.text().split(" ")[0]));
 }
 
-async function select(wrapper: VueWrapper, index: 0 | 1, value: number) {
+async function select(
+	 wrapper: VueWrapper,
+	 index: 0 | 1,
+	 value: number | "all"
+) {
 	wrapper
 		.findAllComponents(PSelect)
 		.at(index)!
@@ -185,6 +189,7 @@ describe("PlanRepairAnalysis", () => {
 		expect(buildings.props("options")).toEqual([
 			{ label: "FRM", value: 0 },
 			{ label: "EXT", value: 1 },
+			{ label: "All buildings", value: "all" },
 		]);
 		expect(buildings.text()).toContain("FRM");
 	});
@@ -251,9 +256,60 @@ describe("PlanRepairAnalysis", () => {
 			.findComponent(PlanRepairCostChart)
 			.props("series") as { name: string; data: number[] }[];
 
-		expect(series.map((s) => s.name)).toEqual(["Total Cost", "BBH", "BSE"]);
+		expect(series.map((s) => s.name)).toEqual([
+			"Total Cost",
+			"Total Cost/Day",
+			"BBH",
+			"BSE",
+		]);
 		// day 45: 1 BBH (100) + 1 BSE (50)
-		expect(series.map((s) => s.data[45])).toEqual([150, 100, 50]);
+		expect(series.map((s) => s.data[45])).toEqual([
+			150,
+			150 / 46,
+			100,
+			50,
+		]);
+	});
+
+	it("aggregates profit and repair costs for all buildings", async () => {
+		const { wrapper } = await mountAnalysis();
+
+		await select(wrapper, 1, "all");
+
+		const profit = wrapper
+			.findComponent(PlanRepairProfitChart)
+			.props("profitData") as number[];
+		const series = wrapper
+			.findComponent(PlanRepairCostChart)
+			.props("series") as { name: string; data: number[] }[];
+
+		expect(profit).toHaveLength(181);
+		expect(series.map((item) => item.name)).toEqual([
+			"Total Cost",
+			"Total Cost/Day",
+			"BBH",
+			"BSE",
+			"MCG",
+		]);
+		// FRM x2 + EXT: 2 BBH, 6 BSE and 25 MCG on day 45
+		expect(series.map((item) => item.data[45])).toEqual([
+			750,
+			200,
+			300,
+			250,
+		]);
+		expect(series[1].data[45]).toBeCloseTo(750 / 46, 8);
+		expect(profit[45]).toBeCloseTo(-750 / 46, 8);
+	});
+
+	it("clears an all-buildings selection when the plan becomes empty", async () => {
+		const { wrapper, setProps } = await mountAnalysis();
+
+		await select(wrapper, 1, "all");
+		await setProps({ data: [] });
+
+		expect(wrapper.findComponent(PlanRepairProfitChart).exists()).toBe(false);
+		expect(wrapper.findComponent(PlanRepairCostChart).exists()).toBe(false);
 	});
 
 	it("recalculates the curves for another building", async () => {
@@ -264,7 +320,12 @@ describe("PlanRepairAnalysis", () => {
 		const series = wrapper
 			.findComponent(PlanRepairCostChart)
 			.props("series") as { name: string; data: number[] }[];
-		expect(series.map((s) => s.name)).toEqual(["Total Cost", "BSE", "MCG"]);
+		expect(series.map((s) => s.name)).toEqual([
+			"Total Cost",
+			"Total Cost/Day",
+			"BSE",
+			"MCG",
+		]);
 		// day 180: full EXT construction 16 * 50 + 100 * 10
 		expect(series.map((s) => s.data[180])).toEqual([1800, 800, 1000]);
 
@@ -295,7 +356,12 @@ describe("PlanRepairAnalysis", () => {
 		const series = wrapper
 			.findComponent(PlanRepairCostChart)
 			.props("series") as { name: string }[];
-		expect(series.map((s) => s.name)).toEqual(["Total Cost", "BBH", "BSE"]);
+		expect(series.map((s) => s.name)).toEqual([
+			"Total Cost",
+			"Total Cost/Day",
+			"BBH",
+			"BSE",
+		]);
 	});
 
 	it("clears the selection when the last building is removed", async () => {

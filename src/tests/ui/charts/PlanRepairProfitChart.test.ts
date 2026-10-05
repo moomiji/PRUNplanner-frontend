@@ -39,6 +39,23 @@ async function alignAt(x: number) {
 }
 
 describe("PlanRepairProfitChart", () => {
+	it("shows tooltips across the hovered day index", async () => {
+		const { wrapper } = await mountComponent(PlanRepairProfitChart, {
+			profitData: [1, 2, 3],
+			optimalPoint: { x: 2, y: 3 },
+		});
+		const options = wrapper
+			.findComponent({ name: "Chart" })
+			.props("options") as {
+				interaction: { mode: string; intersect: boolean };
+			};
+
+		expect(options.interaction).toEqual({
+			mode: "index",
+			intersect: false,
+		});
+	});
+
 	it("keeps the optimal point label inside the chart", async () => {
 		// day 180 sits on the right edge: label goes bottom left
 		expect(await alignAt(550)).toBe(135);
