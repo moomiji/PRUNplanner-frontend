@@ -266,13 +266,13 @@
 					"visitation-frequency",
 					"plan.tools.labels.visitation_frequency",
 				],
+				["construction-cart", "plan.tools.labels.construction_cart"],
+				["supply-cart", "plan.tools.labels.supply_cart"],
+				["repair-analysis", "plan.tools.labels.repair_analysis"],
 				[
 					"transport-analysis",
 					"plan.tools.labels.transport_analysis",
 				],
-				["construction-cart", "plan.tools.labels.construction_cart"],
-				["supply-cart", "plan.tools.labels.supply_cart"],
-				["repair-analysis", "plan.tools.labels.repair_analysis"],
 			] as [NonNullable<toolOptions>, string][]
 		).map(([key, label]) => ({ key, label: t(label) }))
 	);
