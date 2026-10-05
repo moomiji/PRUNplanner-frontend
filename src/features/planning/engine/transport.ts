@@ -1,6 +1,3 @@
-// Constants
-import { TRANSPORT_FUEL_TICKER } from "@/features/planning/engine/transport.constants";
-
 // Types & Interfaces
 import type { IMaterialIO } from "@/features/planning/usePlanCalculation.types";
 import type {
@@ -8,24 +5,42 @@ import type {
 	TransportDirection,
 } from "@/features/planning/engine/transport.types";
 
+interface IFuelFlow {
+	ticker: string;
+	perDay: number;
+	// weight or volume of one unit
+	unit: number;
+	tankUnits: number;
+}
+
 /**
- * Longest interval in days a capacity holds, where `fuelPerDay` units of
- * fuel (`unit` each) first fill a tank of `tankUnits` and only then the
- * capacity, next to `otherPerDay` of everything else
+ * Longest interval in days a capacity holds, where each fuel first fills
+ * its own tank and only then the capacity, next to `otherPerDay` of
+ * everything else
  */
 function solveDays(
 	capacity: number,
 	otherPerDay: number,
-	fuelPerDay: number,
-	unit: number,
-	tankUnits: number
+	fuels: IFuelFlow[]
 ): number {
-	const otherDays: number = otherPerDay > 0 ? capacity / otherPerDay : Infinity;
-	if (fuelPerDay <= 0 || unit <= 0) return otherDays;
-	if (fuelPerDay * otherDays <= tankUnits) return otherDays;
-	return (
-		(capacity + tankUnits * unit) / (otherPerDay + fuelPerDay * unit)
-	);
+	const points = fuels
+		.map((f) => ({ at: f.tankUnits / f.perDay, slope: f.perDay * f.unit }))
+		.sort((a, b) => a.at - b.at);
+
+	let prev: number = 0;
+	let filled: number = 0;
+	let slope: number = otherPerDay;
+
+	for (const p of points) {
+		if (slope > 0 && filled + slope * (p.at - prev) >= capacity) {
+			return prev + (capacity - filled) / slope;
+		}
+		filled += slope * (p.at - prev);
+		prev = p.at;
+		slope += p.slope;
+	}
+
+	return slope > 0 ? prev + (capacity - filled) / slope : Infinity;
 }
 
 /**
@@ -34,7 +49,7 @@ function solveDays(
  *
  * @param {number} weight Ship capacity in t
  * @param {number} volume Ship capacity in m³
- * @param {number} tankUnits Units of SF the fuel tanks add
+ * @param {Record<string, number>} tanks Units of fuel the tanks hold, by fuel ticker
  * @param {IMaterialIO[]} materials Materials assigned to the ship
  * @param {TransportDirection} direction Import (delta < 0) or export
  * @returns {ITransportFlow} Visit interval and load
@@ -42,7 +57,7 @@ function solveDays(
 export function calculateTransportFlow(
 	weight: number,
 	volume: number,
-	tankUnits: number,
+	tanks: Record<string, number>,
 	materials: IMaterialIO[],
 	direction: TransportDirection
 ): ITransportFlow {
@@ -51,40 +66,51 @@ export function calculateTransportFlow(
 
 	let otherWeight: number = 0;
 	let otherVolume: number = 0;
-	let fuelPerDay: number = 0;
-	let fuelWeight: number = 0;
-	let fuelVolume: number = 0;
+	const fuelsWeight: IFuelFlow[] = [];
+	const fuelsVolume: IFuelFlow[] = [];
 
 	for (const m of flowing) {
-		if (m.ticker === TRANSPORT_FUEL_TICKER) {
-			fuelPerDay += Math.abs(m.delta);
-			fuelWeight += Math.abs(m.totalWeight);
-			fuelVolume += Math.abs(m.totalVolume);
-		} else {
+		const tankUnits: number | undefined = tanks[m.ticker];
+		const perDay: number = Math.abs(m.delta);
+		if (tankUnits === undefined) {
 			otherWeight += Math.abs(m.totalWeight);
 			otherVolume += Math.abs(m.totalVolume);
+		} else {
+			fuelsWeight.push({
+				ticker: m.ticker,
+				perDay,
+				unit: Math.abs(m.totalWeight) / perDay,
+				tankUnits,
+			});
+			fuelsVolume.push({
+				ticker: m.ticker,
+				perDay,
+				unit: Math.abs(m.totalVolume) / perDay,
+				tankUnits,
+			});
 		}
 	}
 
-	const unitWeight: number = fuelPerDay > 0 ? fuelWeight / fuelPerDay : 0;
-	const unitVolume: number = fuelPerDay > 0 ? fuelVolume / fuelPerDay : 0;
-
 	const days: number = Math.min(
-		solveDays(weight, otherWeight, fuelPerDay, unitWeight, tankUnits),
-		solveDays(volume, otherVolume, fuelPerDay, unitVolume, tankUnits)
+		solveDays(weight, otherWeight, fuelsWeight),
+		solveDays(volume, otherVolume, fuelsVolume)
 	);
 
 	if (!Number.isFinite(days)) {
-		return { days, loadWeight: 0, loadVolume: 0, tankLoad: 0 };
+		return { days, loadWeight: 0, loadVolume: 0, tankLoads: {} };
 	}
 
-	const fuelUnits: number = fuelPerDay * days;
-	const overflow: number = Math.max(0, fuelUnits - tankUnits);
+	const tankLoads: Record<string, number> = {};
+	let loadWeight: number = otherWeight * days;
+	let loadVolume: number = otherVolume * days;
 
-	return {
-		days,
-		loadWeight: otherWeight * days + overflow * unitWeight,
-		loadVolume: otherVolume * days + overflow * unitVolume,
-		tankLoad: Math.min(fuelUnits, tankUnits),
-	};
+	fuelsWeight.forEach((f, i) => {
+		const units: number = f.perDay * days;
+		const overflow: number = Math.max(0, units - f.tankUnits);
+		tankLoads[f.ticker] = Math.min(units, f.tankUnits);
+		loadWeight += overflow * f.unit;
+		loadVolume += overflow * fuelsVolume[i].unit;
+	});
+
+	return { days, loadWeight, loadVolume, tankLoads };
 }

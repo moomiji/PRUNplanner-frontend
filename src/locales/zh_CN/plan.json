@@ -82,19 +82,25 @@
 			"ship_type": "货仓",
 			"add_ship": "添加船只",
 			"remove_ship": "删除",
-			"stl_tank": "低光速燃料罐（SF个数）",
-			"ftl_tank": "超光速燃料罐（SF个数）",
+			"stl_tank": "低光速燃料罐（SF 个数）",
+			"ftl_tank": "超光速燃料罐（FF 个数）",
 			"tank_none": "无",
 			"select_production": "全选生产物料",
 			"select_workforce": "全选劳动力物料",
-			"materials": "分配的物料",
+			"materials": "已分配物料",
 			"unassigned": "{count} 种物料未分配给任何船只。",
+			"bar": {
+				"weight": "货仓重量",
+				"volume": "货仓体积",
+				"stl": "低光速燃料罐",
+				"ftl": "超光速燃料罐"
+			},
 			"table": {
 				"ship": "船只",
-				"export_days": "出口访问间隔（天）",
 				"export_load": "出口载量",
-				"import_days": "进口访问间隔（天）",
-				"import_load": "进口载量"
+				"export_days": "出口访问间隔（天）",
+				"import_load": "进口载量",
+				"import_days": "进口访问间隔（天）"
 			}
 		},
 		"construction_cart": {

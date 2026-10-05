@@ -83,7 +83,7 @@
 			"add_ship": "Add ship",
 			"remove_ship": "Remove",
 			"stl_tank": "STL fuel tank (units of SF)",
-			"ftl_tank": "FTL fuel tank (units of SF)",
+			"ftl_tank": "FTL fuel tank (units of FF)",
 			"tank_none": "None",
 			"select_production": "All production materials",
 			"select_workforce": "All workforce materials",
@@ -92,7 +92,8 @@
 			"bar": {
 				"weight": "Cargo bay weight",
 				"volume": "Cargo bay volume",
-				"tank": "Fuel tank"
+				"stl": "STL fuel tank",
+				"ftl": "FTL fuel tank"
 			},
 			"table": {
 				"ship": "Ship",

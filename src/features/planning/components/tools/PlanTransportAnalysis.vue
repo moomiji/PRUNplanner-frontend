@@ -7,8 +7,10 @@
 	// Engine
 	import { calculateTransportFlow } from "@/features/planning/engine/transport";
 	import {
+		TRANSPORT_FTL_FUEL,
 		TRANSPORT_FTL_TANKS,
 		TRANSPORT_SHIP_TYPES,
+		TRANSPORT_STL_FUEL,
 		TRANSPORT_STL_TANKS,
 	} from "@/features/planning/engine/transport.constants";
 
@@ -185,7 +187,8 @@
 		ship: ITransportShip;
 		weight: number;
 		volume: number;
-		tank: number;
+		stl: number;
+		ftl: number;
 		exportFlow: ITransportFlow;
 		importFlow: ITransportFlow;
 	}
@@ -197,23 +200,27 @@
 			const materials = props.materialIO.filter((m) =>
 				tickers.has(m.ticker)
 			);
-			const tank: number = ship.stl + ship.ftl;
+			const tanks: Record<string, number> = {
+				[TRANSPORT_STL_FUEL]: ship.stl,
+				[TRANSPORT_FTL_FUEL]: ship.ftl,
+			};
 			return {
 				ship,
 				weight: type.weight,
 				volume: type.volume,
-				tank,
+				stl: ship.stl,
+				ftl: ship.ftl,
 				exportFlow: calculateTransportFlow(
 					type.weight,
 					type.volume,
-					tank,
+					tanks,
 					materials,
 					"export"
 				),
 				importFlow: calculateTransportFlow(
 					type.weight,
 					type.volume,
-					tank,
+					tanks,
 					materials,
 					"import"
 				),
@@ -328,16 +335,16 @@
 				<th>{{ $t("plan.tools.visitation_frequency.shipping.table.ship_weight") }}</th>
 				<th>{{ $t("plan.tools.visitation_frequency.shipping.table.ship_volume") }}</th>
 				<th class="text-center!">
-					{{ $t("plan.tools.transport_analysis.table.export_days") }}
-				</th>
-				<th class="text-center!">
 					{{ $t("plan.tools.transport_analysis.table.export_load") }}
 				</th>
 				<th class="text-center!">
-					{{ $t("plan.tools.transport_analysis.table.import_days") }}
+					{{ $t("plan.tools.transport_analysis.table.export_days") }}
 				</th>
 				<th class="text-center!">
 					{{ $t("plan.tools.transport_analysis.table.import_load") }}
+				</th>
+				<th class="text-center!">
+					{{ $t("plan.tools.transport_analysis.table.import_days") }}
 				</th>
 			</tr>
 		</thead>
@@ -346,26 +353,28 @@
 				<td>{{ shipName(row.ship) }}</td>
 				<td>{{ formatAmount(row.weight) }}</td>
 				<td>{{ formatAmount(row.volume) }}</td>
-				<td class="text-center">{{ formatDays(row.exportFlow) }}</td>
 				<td>
 					<PlanTransportLoad
 						v-if="hasFlow(row.exportFlow)"
 						:flow="row.exportFlow"
 						:weight="row.weight"
 						:volume="row.volume"
-						:tank="row.tank" />
+						:stl="row.stl"
+						:ftl="row.ftl" />
 					<span v-else>—</span>
 				</td>
-				<td class="text-center">{{ formatDays(row.importFlow) }}</td>
+				<td class="text-center">{{ formatDays(row.exportFlow) }}</td>
 				<td>
 					<PlanTransportLoad
 						v-if="hasFlow(row.importFlow)"
 						:flow="row.importFlow"
 						:weight="row.weight"
 						:volume="row.volume"
-						:tank="row.tank" />
+						:stl="row.stl"
+						:ftl="row.ftl" />
 					<span v-else>—</span>
 				</td>
+				<td class="text-center">{{ formatDays(row.importFlow) }}</td>
 			</tr>
 		</tbody>
 	</PTable>

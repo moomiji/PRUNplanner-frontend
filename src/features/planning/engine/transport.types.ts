@@ -12,6 +12,6 @@ export interface ITransportFlow {
 	// what lies in the cargo bay, without SF held by the fuel tanks
 	loadWeight: number;
 	loadVolume: number;
-	// units of SF held by the fuel tanks
-	tankLoad: number;
+	// units of fuel held by the fuel tanks, by fuel ticker
+	tankLoads: Record<string, number>;
 }

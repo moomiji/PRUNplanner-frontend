@@ -11,8 +11,9 @@ export const TRANSPORT_SHIP_TYPES: ITransportShipType[] = [
 	{ key: "HCB", weight: 5000, volume: 5000 },
 ];
 
-// fuel tanks only hold SF, sizes are units of SF
+// STL tanks only hold SF, FTL tanks only FF; sizes are units of fuel
 export const TRANSPORT_STL_TANKS: number[] = [1500, 3500, 8000];
 export const TRANSPORT_FTL_TANKS: number[] = [300, 800, 2000];
 
-export const TRANSPORT_FUEL_TICKER = "SF";
+export const TRANSPORT_STL_FUEL = "SF";
+export const TRANSPORT_FTL_FUEL = "FF";

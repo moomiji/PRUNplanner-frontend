@@ -4,6 +4,12 @@
 	// Util
 	import { formatNumber } from "@/util/numbers";
 
+	// Constants
+	import {
+		TRANSPORT_FTL_FUEL,
+		TRANSPORT_STL_FUEL,
+	} from "@/features/planning/engine/transport.constants";
+
 	// Types & Interfaces
 	import type { ITransportFlow } from "@/features/planning/engine/transport.types";
 
@@ -22,7 +28,8 @@
 		},
 		weight: { type: Number, required: true },
 		volume: { type: Number, required: true },
-		tank: { type: Number, required: true },
+		stl: { type: Number, required: true },
+		ftl: { type: Number, required: true },
 	});
 
 	const bars: ComputedRef<IBar[]> = computed(() => {
@@ -42,13 +49,22 @@
 				unit: "m³",
 			},
 		];
-		if (props.tank > 0) {
+		if (props.stl > 0) {
 			list.push({
-				key: "tank",
-				label: "plan.tools.transport_analysis.bar.tank",
-				used: props.flow.tankLoad,
-				capacity: props.tank,
-				unit: "SF",
+				key: "stl",
+				label: "plan.tools.transport_analysis.bar.stl",
+				used: props.flow.tankLoads[TRANSPORT_STL_FUEL] ?? 0,
+				capacity: props.stl,
+				unit: TRANSPORT_STL_FUEL,
+			});
+		}
+		if (props.ftl > 0) {
+			list.push({
+				key: "ftl",
+				label: "plan.tools.transport_analysis.bar.ftl",
+				used: props.flow.tankLoads[TRANSPORT_FTL_FUEL] ?? 0,
+				capacity: props.ftl,
+				unit: TRANSPORT_FTL_FUEL,
 			});
 		}
 		return list;
