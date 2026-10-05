@@ -36,6 +36,7 @@
 		"labels": {
 			"popr": "POPR",
 			"visitation_frequency": "Visitation Frequency",
+			"transport_analysis": "Transport Analysis",
 			"construction_cart": "Construction Cart",
 			"supply_cart": "Supply Cart",
 			"repair_analysis": "Repair Analysis"
@@ -73,6 +74,27 @@
 					"export_frequency": "@:terms.export Frequency",
 					"import_frequency": "@:terms.import Frequency"
 				}
+			}
+		},
+		"transport_analysis": {
+			"title": "Transport Analysis",
+			"info": "Assign the plan's material flows to ships. Nothing is saved, and changes to the plan update the result.",
+			"ship_type": "Cargo bay",
+			"add_ship": "Add ship",
+			"remove_ship": "Remove",
+			"stl_tank": "STL fuel tank (units of SF)",
+			"ftl_tank": "FTL fuel tank (units of SF)",
+			"tank_none": "None",
+			"select_production": "All production materials",
+			"select_workforce": "All workforce materials",
+			"materials": "Assigned materials",
+			"unassigned": "{count} materials are not assigned to any ship.",
+			"table": {
+				"ship": "Ship",
+				"export_days": "@:terms.export Visitation (days)",
+				"export_load": "@:terms.export Load",
+				"import_days": "@:terms.import Visitation (days)",
+				"import_load": "@:terms.import Load"
 			}
 		},
 		"construction_cart": {

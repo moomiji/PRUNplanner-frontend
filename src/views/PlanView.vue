@@ -231,6 +231,7 @@
 	type toolOptions =
 		| "configuration"
 		| "visitation-frequency"
+		| "transport-analysis"
 		| "repair-analysis"
 		| "popr"
 		| "supply-cart"
@@ -265,6 +266,10 @@
 					"visitation-frequency",
 					"plan.tools.labels.visitation_frequency",
 				],
+				[
+					"transport-analysis",
+					"plan.tools.labels.transport_analysis",
+				],
 				["construction-cart", "plan.tools.labels.construction_cart"],
 				["supply-cart", "plan.tools.labels.supply_cart"],
 				["repair-analysis", "plan.tools.labels.repair_analysis"],
@@ -288,6 +293,11 @@
 				return defineAsyncComponent(
 					() =>
 						import("@/features/planning/components/tools/PlanVisitationFrequency.vue")
+				);
+			case "transport-analysis":
+				return defineAsyncComponent(
+					() =>
+						import("@/features/planning/components/tools/PlanTransportAnalysis.vue")
 				);
 			case "repair-analysis":
 				return defineAsyncComponent(
@@ -324,6 +334,15 @@
 						materialIO: result.value.materialio,
 						disabled: props.disabled,
 						planUuid: refPlanData.value.uuid,
+					},
+					listeners: {},
+				};
+			case "transport-analysis":
+				return {
+					props: {
+						materialIO: result.value.materialio,
+						productionMaterialIO: result.value.productionMaterialIO,
+						workforceMaterialIO: result.value.workforceMaterialIO,
 					},
 					listeners: {},
 				};
