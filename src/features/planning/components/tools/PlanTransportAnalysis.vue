@@ -302,7 +302,7 @@
 		</div>
 
 		<PSelectMultiple
-			:value="selectedTickers(ship)"
+			:value="[...selectedTickers(ship)]"
 			:aria-label="$t('plan.tools.transport_analysis.materials')"
 			:options="materialOptions"
 			multiple
