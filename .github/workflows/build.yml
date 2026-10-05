@@ -23,3 +23,10 @@ jobs:
         run: pnpm install
       - name: "Run Build"
         run: pnpm run build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prunplanner-frontend-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
