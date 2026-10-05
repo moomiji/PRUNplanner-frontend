@@ -61,6 +61,12 @@ describe("calculateTransportFlow", () => {
 			20
 		);
 		expect(calculateTransportFlow(100, 100, 0, sf, "import").days).toBe(10);
+
+		// at 20 days the tank holds 100 units, the bay the other 100 t
+		const flow = calculateTransportFlow(100, 100, 100, sf, "import");
+		expect(flow.tankLoad).toBe(100);
+		expect(flow.loadWeight).toBe(100);
+		expect(flow.loadVolume).toBe(100);
 	});
 
 	it("only keeps the tank for SF", () => {

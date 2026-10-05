@@ -32,6 +32,9 @@
 		exclude: string[];
 	}
 
+	// Components
+	import PlanTransportLoad from "@/features/planning/components/tools/PlanTransportLoad.vue";
+
 	// UI
 	import { PButton, PSelect, PSelectMultiple, PTable } from "@/ui";
 
@@ -182,6 +185,7 @@
 		ship: ITransportShip;
 		weight: number;
 		volume: number;
+		tank: number;
 		exportFlow: ITransportFlow;
 		importFlow: ITransportFlow;
 	}
@@ -198,6 +202,7 @@
 				ship,
 				weight: type.weight,
 				volume: type.volume,
+				tank,
 				exportFlow: calculateTransportFlow(
 					type.weight,
 					type.volume,
@@ -225,10 +230,8 @@
 		return Number.isFinite(flow.days) ? formatNumber(flow.days) : "—";
 	}
 
-	function formatLoad(flow: ITransportFlow): string {
-		return Number.isFinite(flow.days)
-			? `${formatNumber(flow.loadWeight)} t / ${formatNumber(flow.loadVolume)} m³`
-			: "—";
+	function hasFlow(flow: ITransportFlow): boolean {
+		return Number.isFinite(flow.days);
 	}
 </script>
 
@@ -344,9 +347,25 @@
 				<td>{{ formatAmount(row.weight) }}</td>
 				<td>{{ formatAmount(row.volume) }}</td>
 				<td class="text-center">{{ formatDays(row.exportFlow) }}</td>
-				<td class="text-center">{{ formatLoad(row.exportFlow) }}</td>
+				<td>
+					<PlanTransportLoad
+						v-if="hasFlow(row.exportFlow)"
+						:flow="row.exportFlow"
+						:weight="row.weight"
+						:volume="row.volume"
+						:tank="row.tank" />
+					<span v-else>—</span>
+				</td>
 				<td class="text-center">{{ formatDays(row.importFlow) }}</td>
-				<td class="text-center">{{ formatLoad(row.importFlow) }}</td>
+				<td>
+					<PlanTransportLoad
+						v-if="hasFlow(row.importFlow)"
+						:flow="row.importFlow"
+						:weight="row.weight"
+						:volume="row.volume"
+						:tank="row.tank" />
+					<span v-else>—</span>
+				</td>
 			</tr>
 		</tbody>
 	</PTable>

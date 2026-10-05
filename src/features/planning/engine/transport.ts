@@ -75,12 +75,16 @@ export function calculateTransportFlow(
 	);
 
 	if (!Number.isFinite(days)) {
-		return { days, loadWeight: 0, loadVolume: 0 };
+		return { days, loadWeight: 0, loadVolume: 0, tankLoad: 0 };
 	}
+
+	const fuelUnits: number = fuelPerDay * days;
+	const overflow: number = Math.max(0, fuelUnits - tankUnits);
 
 	return {
 		days,
-		loadWeight: (otherWeight + fuelWeight) * days,
-		loadVolume: (otherVolume + fuelVolume) * days,
+		loadWeight: otherWeight * days + overflow * unitWeight,
+		loadVolume: otherVolume * days + overflow * unitVolume,
+		tankLoad: Math.min(fuelUnits, tankUnits),
 	};
 }

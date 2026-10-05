@@ -89,6 +89,11 @@
 			"select_workforce": "All workforce materials",
 			"materials": "Assigned materials",
 			"unassigned": "{count} materials are not assigned to any ship.",
+			"bar": {
+				"weight": "Cargo bay weight",
+				"volume": "Cargo bay volume",
+				"tank": "Fuel tank"
+			},
 			"table": {
 				"ship": "Ship",
 				"export_days": "@:terms.export Visitation (days)",
