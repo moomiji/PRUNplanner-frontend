@@ -36,6 +36,7 @@
 		"labels": {
 			"popr": "POPR",
 			"visitation_frequency": "访问频率",
+			"transport_analysis": "运输分析",
 			"construction_cart": "建造清单",
 			"supply_cart": "补给清单",
 			"repair_analysis": "维修分析"
@@ -73,6 +74,27 @@
 					"export_frequency": "@:terms.export 频率",
 					"import_frequency": "@:terms.import 频率"
 				}
+			}
+		},
+		"transport_analysis": {
+			"title": "运输分析",
+			"info": "将计划的物料流分配给船只。数据不会保存，计划更新时结果会自动刷新。",
+			"ship_type": "货仓",
+			"add_ship": "添加船只",
+			"remove_ship": "删除",
+			"stl_tank": "低光速燃料罐（SF个数）",
+			"ftl_tank": "超光速燃料罐（SF个数）",
+			"tank_none": "无",
+			"select_production": "全选生产物料",
+			"select_workforce": "全选劳动力物料",
+			"materials": "分配的物料",
+			"unassigned": "{count} 种物料未分配给任何船只。",
+			"table": {
+				"ship": "船只",
+				"export_days": "出口访问间隔（天）",
+				"export_load": "出口载量",
+				"import_days": "进口访问间隔（天）",
+				"import_load": "进口载量"
 			}
 		},
 		"construction_cart": {
